@@ -1,0 +1,8 @@
+enable_media=true
+enable_plugins=false
+enable_pdf=false
+enable_print_preview=false
+proprietary_codecs=false
+use_opus=true
+is_component_build=false
+symbol_level=0
