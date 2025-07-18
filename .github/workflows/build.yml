@@ -1,0 +1,20 @@
+name: Build Minimal CEF + JCEF
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y git python2 ninja-build clang pkg-config libasound2-dev openjdk-17-jdk curl unzip
+
+      - name: Build CEF + JCEF (Minimal)
+        run: |
+          ./scripts/compile_linux.sh amd64 Release
