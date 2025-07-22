@@ -7,14 +7,14 @@ BUILD_TYPE=${2:-Release}
 echo "🔧 Building JCEF for ${TARGETARCH} (${BUILD_TYPE})"
 
 # Clone JCEF if missing
-if [ ! -d "/jcef" ]; then
+if [ ! -d "jcef" ]; then
   echo "📦 Cloning JCEF repo..."
-  git clone https://bitbucket.org/chromiumembedded/jcef.git /jcef
-  cd /jcef
+  git clone https://bitbucket.org/chromiumembedded/jcef.git jcef
+  cd jcef
   git checkout master
 else
   echo "📁 Found existing JCEF source"
-  cd /jcef
+  cd jcef
 fi
 
 # Patch CMakeLists.txt to disable unused features
