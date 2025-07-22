@@ -20,11 +20,10 @@ jobs:
         run: |
           ./scripts/compile_linux.sh amd64 Release
 
-      - name: Upload JCEF build artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: jcef-linux-build
-          path: |
-            jcef/out/Release/*
-            jcef/jcef.jar
+      - name: Export distribution
+        run: |
+          mv out/binary_distrib.tar.gz out/linux-amd64.tar.gz
+          gh release upload ${{needs.create-release.outputs.release_tag_name}} out/linux-amd64.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
