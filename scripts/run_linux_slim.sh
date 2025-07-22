@@ -1,53 +1,75 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Architecture and build type
 TARGETARCH=${1:-amd64}
 BUILD_TYPE=${2:-Release}
 
 echo "🔧 Building JCEF for ${TARGETARCH} (${BUILD_TYPE})"
 
 # Clone JCEF if missing
-if [ ! -d "jcef" ]; then
-  git clone https://bitbucket.org/chromiumembedded/jcef.git
+if [ ! -d "/jcef" ]; then
+  echo "📦 Cloning JCEF repo..."
+  git clone https://bitbucket.org/chromiumembedded/jcef.git /jcef
+  cd /jcef
+  git checkout master
+else
+  echo "📁 Found existing JCEF source"
+  cd /jcef
 fi
 
-cd jcef
+# Patch CMakeLists.txt to disable unused features
+echo "🧹 Patching CMakeLists.txt..."
+sed -i 's/ENABLE_PDF_SUPPORT ON/ENABLE_PDF_SUPPORT OFF/' CMakeLists.txt || true
+sed -i 's/ENABLE_PLUGIN_SUPPORT ON/ENABLE_PLUGIN_SUPPORT OFF/' CMakeLists.txt || true
+sed -i 's/ENABLE_PRINTING_SUPPORT ON/ENABLE_PRINTING_SUPPORT OFF/' CMakeLists.txt || true
 
-# Patch CMakeLists.txt to skip unused features
-sed -i 's/ENABLE_PDF_SUPPORT ON/ENABLE_PDF_SUPPORT OFF/' CMakeLists.txt
-sed -i 's/ENABLE_PLUGIN_SUPPORT ON/ENABLE_PLUGIN_SUPPORT OFF/' CMakeLists.txt
-sed -i 's/ENABLE_PRINTING_SUPPORT ON/ENABLE_PRINTING_SUPPORT OFF/' CMakeLists.txt
+# Create build directory
+mkdir -p jcef_build
+cd jcef_build
 
-# Build native binaries
-mkdir -p out/${BUILD_TYPE}
-cd out/${BUILD_TYPE}
-
-cmake ../.. \
-  -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+# Configure CMake with Ninja
+cmake -G "Ninja" \
   -DPROJECT_ARCH=${TARGETARCH} \
-  -DCLANG=ON \
+  -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
   -DENABLE_AUDIO=ON \
   -DENABLE_VIDEO=OFF \
   -DENABLE_PDF_SUPPORT=OFF \
   -DENABLE_PLUGIN_SUPPORT=OFF \
-  -DENABLE_PRINTING_SUPPORT=OFF
+  -DENABLE_PRINTING_SUPPORT=OFF \
+  ..
 
-ninja
+# Build native binaries
+ninja -j$(nproc)
 
-# Strip unused locales
-echo "🧹 Trimming locales..."
-rm -rf cef_binary/locales/*
-cp cef_binary/locales/en-US.pak cef_binary/locales/
+# Compile Java classes
+cd ../tools
+chmod +x compile.sh
+./compile.sh linux64
 
-# Upload minimal artifacts (if running in CI)
+# Generate distribution
+cd ..
+chmod +x make_distrib.sh
+./make_distrib.sh linux64
+
+# Trim locales to English only
+echo "🧹 Removing unused locales..."
+rm -rf binary_distrib/linux64/bin/locales/*
+cp jcef/cef_binary/locales/en-US.pak binary_distrib/linux64/bin/locales/
+
+# Strip libcef if Release build
+if [ "${BUILD_TYPE}" == "Release" ]; then
+  echo "🔪 Stripping libcef.so..."
+  strip binary_distrib/linux64/bin/lib/linux64/libcef.so || true
+fi
+
+# Prepare artifacts for CI
 if [ "${CI:-}" = "true" ]; then
-  echo "📦 Uploading artifacts..."
-  mkdir -p ../../artifacts
-  cp jcef.jar ../../artifacts/
-  cp libjcef.so ../../artifacts/
-  cp libcef.so ../../artifacts/
-  cp cef_binary/locales/en-US.pak ../../artifacts/
+  echo "📦 Preparing artifacts for upload..."
+  mkdir -p /jcef/artifacts
+  cp binary_distrib/linux64/bin/lib/linux64/libcef.so /jcef/artifacts/
+  cp binary_distrib/linux64/bin/lib/linux64/libjcef.so /jcef/artifacts/
+  cp binary_distrib/linux64/bin/jcef.jar /jcef/artifacts/
+  cp binary_distrib/linux64/bin/locales/en-US.pak /jcef/artifacts/
 fi
 
 echo "✅ Slim JCEF build complete."
