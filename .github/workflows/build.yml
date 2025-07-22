@@ -19,3 +19,12 @@ jobs:
       - name: Build CEF + JCEF (Minimal)
         run: |
           ./scripts/compile_linux.sh amd64 Release
+
+      - name: Upload JCEF build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: jcef-linux-build
+          path: |
+            jcef/out/Release/*
+            jcef/jcef.jar
+
